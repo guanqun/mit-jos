@@ -122,7 +122,21 @@ boot_alloc(uint32_t n, uint32_t align)
 	//	Step 3: increase boot_freemem to record allocation
 	//	Step 4: return allocated chunk
 
-	return NULL;
+	// if align is zero, I just bypass the test
+	// i.e. I think zero as a power of two, which you may not agree with.
+	if (align) {
+		if (align & (align - 1))
+			panic("boot_alloc : align is not a power of two.\n");
+		boot_freemem = ROUNDUP(boot_freemem, align);
+	}
+
+	v = (void *)boot_freemem;
+	boot_freemem += n;
+
+	if ((unsigned int)boot_freemem < (unsigned int)end)
+		panic("boot_alloc: out of memory.\n");
+	else
+		return v;
 }
 
 // Set up a two-level page table:
@@ -143,9 +157,6 @@ i386_vm_init(void)
 	pde_t* pgdir;
 	uint32_t cr0;
 	size_t n;
-
-	// Delete this line:
-	panic("i386_vm_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -174,7 +185,8 @@ i386_vm_init(void)
 	// programs will get read-only access to the array as well.
 	// You must allocate the array yourself.
 	// Your code goes here: 
-
+	n = ROUNDUP((sizeof(struct Page) * npage), PGSIZE);
+	pages = boot_alloc(n, PGSIZE);
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -183,7 +195,7 @@ i386_vm_init(void)
 	// particular, we can now map memory using boot_map_segment or page_insert
 	page_init();
 
-        check_page_alloc();
+	check_page_alloc();
 
 	page_check();
 
@@ -296,9 +308,9 @@ check_page_alloc()
 	assert(pp0);
 	assert(pp1 && pp1 != pp0);
 	assert(pp2 && pp2 != pp1 && pp2 != pp0);
-        assert(page2pa(pp0) < npage*PGSIZE);
-        assert(page2pa(pp1) < npage*PGSIZE);
-        assert(page2pa(pp2) < npage*PGSIZE);
+	assert(page2pa(pp0) < npage*PGSIZE);
+	assert(page2pa(pp1) < npage*PGSIZE);
+	assert(page2pa(pp2) < npage*PGSIZE);
 
 	// temporarily steal the rest of the free pages
 	fl = page_free_list;
@@ -307,10 +319,11 @@ check_page_alloc()
 	// should be no free memory
 	assert(page_alloc(&pp) == -E_NO_MEM);
 
-        // free and re-allocate?
-        page_free(pp0);
-        page_free(pp1);
-        page_free(pp2);
+	// free and re-allocate?
+	page_free(pp0);
+	page_free(pp1);
+	page_free(pp2);
+
 	pp0 = pp1 = pp2 = 0;
 	assert(page_alloc(&pp0) == 0);
 	assert(page_alloc(&pp1) == 0);
@@ -430,11 +443,28 @@ page_init(void)
 	//     Which pages are used for page tables and other data structures?
 	//
 	// Change the code to reflect this.
-	int i;
+	struct Page *ppage;
+	unsigned int i;
+
 	LIST_INIT(&page_free_list);
 	for (i = 0; i < npage; i++) {
 		pages[i].pp_ref = 0;
 		LIST_INSERT_HEAD(&page_free_list, &pages[i], pp_link);
+	}
+
+	// mark page 0 as in use
+	LIST_REMOVE(&pages[0], pp_link);
+
+	// IO hole
+	for (i = IOPHYSMEM; i < EXTPHYSMEM; i += PGSIZE) {
+		ppage = pa2page(i);
+		LIST_REMOVE(ppage, pp_link);
+	}
+
+	// reserve the kernel image and data structures allocated
+	for (i = 0xf0100000; i < (unsigned int)boot_freemem; i += PGSIZE) {
+		ppage = pa2page(PADDR(i));
+		LIST_REMOVE(ppage, pp_link);
 	}
 }
 
@@ -467,6 +497,16 @@ int
 page_alloc(struct Page **pp_store)
 {
 	// Fill this function in
+	struct Page *page_avail;
+
+	if (!LIST_EMPTY(&page_free_list)) {
+		page_avail = LIST_FIRST(&page_free_list);
+		LIST_REMOVE(page_avail, pp_link);
+		page_initpp(page_avail);
+
+		*pp_store = page_avail;
+		return 0;
+	}
 	return -E_NO_MEM;
 }
 
@@ -478,6 +518,10 @@ void
 page_free(struct Page *pp)
 {
 	// Fill this function in
+	if (pp->pp_ref)
+		panic("page_free: pp->pp_ref is not zero.\n");
+
+	LIST_INSERT_HEAD(&page_free_list, pp, pp_link);
 }
 
 //

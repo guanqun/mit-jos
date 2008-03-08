@@ -553,7 +553,27 @@ pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-	return NULL;
+	unsigned int pde;
+	unsigned int la = (unsigned int)va;
+	struct Page *free_page;
+
+	pde = pgdir[PDX(la)];
+	if (pde & PTE_P)
+		return (pte_t *)KADDR(PTE_ADDR(pde)) + PTX(la);
+	else if (!create)
+		return NULL;
+	else {
+		if (page_alloc(&free_page) == 0) {
+			// clear the actual physical page
+			memset(page2kva(free_page), 0, PGSIZE);
+			// setup the specific entry
+			pgdir[PDX(la)] = page2pa(free_page) | PTE_W | PTE_P;
+			// increase the pp_ref field
+			free_page->pp_ref++;
+			return (pte_t *)KADDR(PTE_ADDR(pgdir[PDX(la)])) + PTX(la);
+		}
+		return NULL;
+	}
 }
 
 //
@@ -579,6 +599,34 @@ int
 page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm) 
 {
 	// Fill this function in
+	pte_t *pte;
+
+	pte = pgdir_walk(pgdir, va, 1);
+	// truncate 'perm' to the right bits
+	perm &= 0xfff;
+
+	if (pte == NULL)
+		return -E_NO_MEM;
+
+	if (*pte & PTE_P) {
+		if (PTE_ADDR(*pte) != page2pa(pp)) {
+			// already a page mapped at 'va'
+			page_remove(pgdir, va);
+			*pte = page2pa(pp) | perm | PTE_P;
+			// the ref is incremented, because it is used in the mapping.
+			pp->pp_ref++;
+			tlb_invalidate(pgdir, va);
+		} else {
+			// the same page mapped at 'va'
+			// learn from 'page_check', the permission may change
+			*pte |= perm;
+		}
+	} else {
+		*pte = page2pa(pp) | perm | PTE_P;
+		// the ref is incremented, because it is used in the mapping.
+		pp->pp_ref++;
+	}
+
 	return 0;
 }
 
@@ -596,6 +644,13 @@ static void
 boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
+	pte_t *pt;
+	int i;
+
+	for (i = 0; i < size; i += PGSIZE) {
+		pt = pgdir_walk(pgdir, (void *)(la + i), 1);
+		*pt = PTE_ADDR(pa + i) | (perm & 0xFFF) | PTE_P;
+	}
 }
 
 //
@@ -612,7 +667,24 @@ struct Page *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
 	// Fill this function in
-	return NULL;
+	pte_t *pte;
+	pte_t entry;
+
+	pte = pgdir_walk(pgdir, va, 0);
+	if (pte == NULL)
+		return NULL;
+
+	entry = *pte;
+	if (!(entry & PTE_P))
+		return NULL;
+
+	if (PPN(PTE_ADDR(entry)) >= npage)
+		return NULL;
+
+	if (pte_store)
+		*pte_store = pte;
+
+	return &pages[PPN(PTE_ADDR(entry))];
 }
 
 //
@@ -634,6 +706,15 @@ void
 page_remove(pde_t *pgdir, void *va)
 {
 	// Fill this function in
+	pte_t *entry;
+	struct Page *pp;
+
+	pp = page_lookup(pgdir, va, &entry);
+	if (pp) {
+		page_decref(pp);
+		*entry = 0;
+		tlb_invalidate(pgdir, va);
+	}
 }
 
 //

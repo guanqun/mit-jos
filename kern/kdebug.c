@@ -108,7 +108,7 @@ debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 {
 	const struct Stab *stabs, *stab_end;
 	const char *stabstr, *stabstr_end;
-	int lfile, rfile, lfun, rfun, lline, rline;
+	int lfile, rfile, lfun, rfun, lline, rline, i;
 
 	// Initialize *info
 	info->eip_file = "<unknown>";
@@ -181,8 +181,12 @@ debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 	//	Look at the STABS documentation and <inc/stab.h> to find
 	//	which one.
 	// Your code here.
+	lline = lfun;
+	rline = rfun;
+	stab_binsearch(stabs, &lline, &rline, N_SLINE, addr);
+	if (lline <= rline)
+		info->eip_line = stabs[lline].n_desc;
 
-	
 	// Search backwards from the line number for the relevant filename
 	// stab.
 	// We can't just use the "lfile" stab because inlined functions
@@ -200,6 +204,13 @@ debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 	// or 0 if there was no containing function.
 	// Your code here.
 
+	// but it seems that it is not used?
+	i = 0;
+	while (lline <= rline && stabs[lline].n_type == N_PSYM) {
+		lline++;
+		i++;
+	}
+	info->eip_fn_narg = i;
 	
 	return 0;
 }

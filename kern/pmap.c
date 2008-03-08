@@ -445,6 +445,7 @@ page_init(void)
 	// Change the code to reflect this.
 	struct Page *ppage;
 	unsigned int i;
+	extern char _start[];
 
 	LIST_INIT(&page_free_list);
 	for (i = 0; i < npage; i++) {
@@ -462,7 +463,7 @@ page_init(void)
 	}
 
 	// reserve the kernel image and data structures allocated
-	for (i = 0xf0100000; i < (unsigned int)boot_freemem; i += PGSIZE) {
+	for (i = (unsigned int)_start; i < (unsigned int)boot_freemem; i += PGSIZE) {
 		ppage = pa2page(PADDR(i));
 		LIST_REMOVE(ppage, pp_link);
 	}

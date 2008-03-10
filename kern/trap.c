@@ -57,8 +57,12 @@ void
 idt_init(void)
 {
 	extern struct Segdesc gdt[];
-	
+	extern void gpflt_entry();
+	extern void divzero_entry();
+
 	// LAB 3: Your code here.
+	SETGATE(idt[T_DIVIDE], 1, GD_KT, divzero_entry, 3);
+	SETGATE(idt[T_GPFLT], 1, GD_KT, gpflt_entry, 3);
 
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
@@ -138,13 +142,13 @@ trap(struct Trapframe *tf)
 		// The trapframe on the stack should be ignored from here on.
 		tf = &curenv->env_tf;
 	}
-	
+
 	// Dispatch based on what type of trap occurred
 	trap_dispatch(tf);
 
-        // Return to the current environment, which should be runnable.
-        assert(curenv && curenv->env_status == ENV_RUNNABLE);
-        env_run(curenv);
+	// Return to the current environment, which should be runnable.
+	assert(curenv && curenv->env_status == ENV_RUNNABLE);
+	env_run(curenv);
 }
 
 

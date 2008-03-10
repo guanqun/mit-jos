@@ -157,7 +157,7 @@ i386_vm_init(void)
 {
 	pde_t* pgdir;
 	uint32_t cr0;
-	size_t n;
+	size_t page_size, env_size;
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -186,12 +186,14 @@ i386_vm_init(void)
 	// programs will get read-only access to the array as well.
 	// You must allocate the array yourself.
 	// Your code goes here: 
-	n = ROUNDUP((sizeof(struct Page) * npage), PGSIZE);
-	pages = boot_alloc(n, PGSIZE);
+	page_size = ROUNDUP((sizeof(struct Page) * npage), PGSIZE);
+	pages = boot_alloc(page_size, PGSIZE);
 
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
 	// LAB 3: Your code here.
+	env_size = ROUNDUP((sizeof(struct Env) * NENV), PGSIZE);
+	envs = boot_alloc(env_size, PGSIZE);
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -214,7 +216,7 @@ i386_vm_init(void)
 	//    - pages -- kernel RW, user NONE
 	//    - the read-only version mapped at UPAGES -- kernel R, user R
 	// Your code goes here:
-	boot_map_segment(pgdir, UPAGES, n, PADDR(pages), PTE_U);
+	boot_map_segment(pgdir, UPAGES, page_size, PADDR(pages), PTE_U);
 
 	//////////////////////////////////////////////////////////////////////
 	// Map the 'envs' array read-only by the user at linear address UENVS
@@ -222,6 +224,7 @@ i386_vm_init(void)
 	// Permissions:
 	//    - envs itself -- kernel RW, user NONE
 	//    - the image of envs mapped at UENVS  -- kernel R, user R
+	boot_map_segment(pgdir, UENVS, env_size, PADDR(envs), PTE_U);
 
 	//////////////////////////////////////////////////////////////////////
 	// Map the kernel stack (symbol name "bootstack").  The complete VA
@@ -585,7 +588,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 			// clear the actual physical page
 			memset(page2kva(free_page), 0, PGSIZE);
 			// setup the specific entry
-			pgdir[PDX(la)] = page2pa(free_page) | PTE_W | PTE_P;
+			pgdir[PDX(la)] = page2pa(free_page) | PTE_W | PTE_U | PTE_P;
 			// increase the pp_ref field
 			free_page->pp_ref++;
 			return (pte_t *)KADDR(PTE_ADDR(pgdir[PDX(la)])) + PTX(la);

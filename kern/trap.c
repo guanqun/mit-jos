@@ -61,8 +61,8 @@ idt_init(void)
 	extern void divzero_entry();
 
 	// LAB 3: Your code here.
-	SETGATE(idt[T_DIVIDE], 1, GD_KT, divzero_entry, 3);
-	SETGATE(idt[T_GPFLT], 1, GD_KT, gpflt_entry, 3);
+	SETGATE(idt[T_DIVIDE], 1, GD_KT, divzero_entry, 0);
+	SETGATE(idt[T_GPFLT], 1, GD_KT, gpflt_entry, 0);
 
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
@@ -115,7 +115,6 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
-	
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);

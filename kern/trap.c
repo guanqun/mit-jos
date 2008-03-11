@@ -77,6 +77,8 @@ idt_init(void)
 	extern void mchk_entry();
 	extern void simderr_entry();
 
+	extern void syscall_entry();
+
 	// LAB 3: Your code here.
 	SETGATE(idt[T_DIVIDE], 1, GD_KT, divzero_entry, 0);
 	SETGATE(idt[T_DEBUG], 1, GD_KT, debug_entry, 0);
@@ -96,6 +98,8 @@ idt_init(void)
 	SETGATE(idt[T_ALIGN], 1, GD_KT, align_entry, 0);
 	SETGATE(idt[T_MCHK], 1, GD_KT, mchk_entry, 0);
 	SETGATE(idt[T_SIMDERR], 1, GD_KT, simderr_entry, 0);
+
+	SETGATE(idt[T_SYSCALL], 0, GD_KT, syscall_entry, 3);
 
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
@@ -148,6 +152,8 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+	int sys_ret;
+
 	switch (tf->tf_trapno) {
 	case T_BRKPT:
 		print_trapframe(tf);
@@ -156,6 +162,15 @@ trap_dispatch(struct Trapframe *tf)
 	case T_PGFLT:
 		page_fault_handler(tf);
 		break;
+	case T_SYSCALL:
+		sys_ret = syscall(tf->tf_regs.reg_eax,
+						  tf->tf_regs.reg_edx,
+						  tf->tf_regs.reg_ecx,
+						  tf->tf_regs.reg_ebx,
+						  tf->tf_regs.reg_edi,
+						  tf->tf_regs.reg_esi);
+		tf->tf_regs.reg_eax = sys_ret;
+		return;
 	default:
 		break;
 	}
@@ -204,8 +219,13 @@ page_fault_handler(struct Trapframe *tf)
 	fault_va = rcr2();
 
 	// Handle kernel-mode page faults.
-	
 	// LAB 3: Your code here.
+	if ((tf->tf_cs & 3) == 0) {
+		// trapped from kernel mode
+		// and we are in trouble...
+		panic("page fault happend in kernel mode");
+		return;
+	}
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.

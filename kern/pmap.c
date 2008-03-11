@@ -775,6 +775,32 @@ int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here. 
+	unsigned int va_start, va_end;
+	pte_t *pte;
+
+	perm |= PTE_P;
+	user_mem_check_addr = (uintptr_t)va;
+	// make 'va_start' and 'va_end' page-aligned.
+	va_start = ROUNDDOWN((unsigned int)va, PGSIZE);
+	va_end = ROUNDUP((unsigned int)(va + len), PGSIZE);
+
+	while (va_start < va_end) {
+		// check whether the address is below ULIM
+		if (va_start >= ULIM)
+			return -E_FAULT;
+
+		// check the page table permission
+		pte = pgdir_walk(env->env_pgdir, (void *)va_start, 0);
+		if (!pte)
+			return -E_FAULT;
+
+		if ((*pte & perm) != perm)
+			return -E_FAULT;
+
+		// update 'va_start' and 'user_mem_check_addr'
+		va_start += PGSIZE;
+		user_mem_check_addr = va_start;
+	}
 
 	return 0;
 }

@@ -49,8 +49,7 @@ i386_init(void)
 	ENV_CREATE2(TEST, TESTSIZE)
 #else
 	// Touch all you want.
-	ENV_CREATE(user_yield);
-	ENV_CREATE(user_yield);
+	ENV_CREATE(user_faultalloc);
 #endif // TEST*
 
 	// Schedule and run the first user environment!

@@ -8,6 +8,7 @@ enum
 	SYS_cgetc,
 	SYS_getenvid,
 	SYS_env_destroy,
+	SYS_phy_page,
 	SYS_page_alloc,
 	SYS_page_map,
 	SYS_page_unmap,

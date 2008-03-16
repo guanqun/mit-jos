@@ -640,7 +640,7 @@ page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm)
 		} else {
 			// the same page mapped at 'va'
 			// learn from 'page_check', the permission may change
-			*pte |= perm;
+			*pte = (*pte & 0xfffff000) | perm | PTE_P;
 		}
 	} else {
 		*pte = page2pa(pp) | perm | PTE_P;

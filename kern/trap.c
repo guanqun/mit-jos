@@ -161,7 +161,6 @@ trap_dispatch(struct Trapframe *tf)
 
 	switch (tf->tf_trapno) {
 	case T_BRKPT:
-		print_trapframe(tf);
 		panic("enter breakpoint");
 		break;
 	case T_PGFLT:
@@ -233,6 +232,8 @@ page_fault_handler(struct Trapframe *tf)
 	if ((tf->tf_cs & 3) == 0) {
 		// trapped from kernel mode
 		// and we are in trouble...
+		cprintf("kernel fault va %08x ip %08x\n",
+				fault_va, tf->tf_eip);
 		panic("page fault happend in kernel mode");
 		return;
 	}
@@ -278,9 +279,13 @@ page_fault_handler(struct Trapframe *tf)
 		env_destroy(curenv);
 		return;
 	}
-	user_mem_assert(curenv, (void *)(UXSTACKTOP-PGSIZE), PGSIZE,
+	// check whether the user exception stack is accessible
+	user_mem_assert(curenv, (void *)(UXSTACKTOP-4), 4,
 					PTE_P | PTE_W | PTE_U);
-
+	// added according to 'faultbadhandler' to check whether
+	// the page fault installed is accessible to the user
+	user_mem_assert(curenv, (void *)(curenv->env_pgfault_upcall), 4,
+					PTE_P | PTE_U);
 	// initialize the utf according to tf
 	utf.utf_fault_va = fault_va;
 	utf.utf_err = tf->tf_err;

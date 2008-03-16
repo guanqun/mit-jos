@@ -117,3 +117,8 @@ sys_ipc_recv(void *dstva)
 	return syscall(SYS_ipc_recv, 1, (uint32_t)dstva, 0, 0, 0, 0);
 }
 
+int
+sys_phy_page(envid_t envid, void *va)
+{
+	return syscall(SYS_phy_page, 0, (uint32_t)envid, (uint32_t)va, 0, 0, 0);
+}

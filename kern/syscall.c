@@ -96,7 +96,6 @@ sys_exofork(void)
 
 	child->env_status = ENV_NOT_RUNNABLE;
 	child->env_tf = curenv->env_tf;
-	print_trapframe(&child->env_tf);
 	// tweak the register eax of the child,
 	// thus, the child will look like the return value
 	// of the the system call is zero.
@@ -287,9 +286,9 @@ sys_page_map(envid_t srcenvid, void *srcva,
 
 	if (page_insert(dstenv->env_pgdir, page, dstva, perm) < 0)
 		return -E_NO_MEM;
-	cprintf("map [%08x] %08x(%08x) -> [%08x] %08x()\n",
+	/*cprintf("map [%08x] %08x(%08x) -> [%08x] %08x(%08x) perm: %x\n",
 			srcenv->env_id, srcva, *srcpte,
-			dstenv->env_id, dstva);
+			dstenv->env_id, dstva, *dstpte, perm);*/
 
 	return 0;
 }
@@ -379,6 +378,23 @@ sys_ipc_recv(void *dstva)
 	return 0;
 }
 
+static int
+sys_phy_page(envid_t envid, void *va)
+{
+	struct Env *task;
+	struct Page *page;
+	pte_t *pte;
+
+	if (envid2env(envid, &task, 1) < 0)
+		return -E_BAD_ENV;
+
+	page = page_lookup(task->env_pgdir, va, &pte);
+	if (page == 0)
+		return 0;
+
+	return *pte;
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -422,6 +438,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		break;
 	case SYS_yield:
 		sys_yield();
+		break;
+	case SYS_phy_page:
+		ret = sys_phy_page((envid_t)a1, (void *)a2);
 		break;
 	default:
 		// NSYSCALLS

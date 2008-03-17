@@ -358,7 +358,56 @@ static int
 sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 {
 	// LAB 4: Your code here.
-	panic("sys_ipc_try_send not implemented");
+	struct Env *target;
+	struct Page *page;
+	pte_t *pte;
+	int r, ret = 0;
+
+	if ((r = envid2env(envid, &target, 0)) < 0)
+		return -E_BAD_ENV;
+
+	if (!target->env_ipc_recving)
+		return -E_IPC_NOT_RECV;
+
+	// srcva is not null, then
+	// we need to map it, thus sharing the map
+	if (srcva) {
+		if ((unsigned int)srcva >= UTOP)
+			return -E_INVAL;
+
+		if (srcva != ROUNDDOWN(srcva, PGSIZE))
+			return -E_INVAL;
+
+		if ((page = page_lookup(curenv->env_pgdir, srcva, &pte)) == NULL)
+			return -E_INVAL;
+
+		// PTE_U and PTE_P must be set
+		if (!(perm & PTE_U) || !(perm & PTE_P))
+			return -E_INVAL;
+		// other bits than PTE_{U,P,W,AVAIL} are set
+		if (perm & ((~(PTE_U | PTE_P | PTE_W | PTE_AVAIL)) & 0xfff))
+			return -E_INVAL;
+		// perm has PTE_W, but scrpte is read-only.
+		if ((perm & PTE_W) && !(*pte & PTE_W))
+			return -E_INVAL;
+
+		if (target->env_ipc_dstva == srcva &&
+			page_insert(target->env_pgdir, page, srcva, perm) < 0)
+			return -E_NO_MEM;
+
+		ret = 1;
+	}
+
+	target->env_ipc_recving = 0;
+	target->env_ipc_value = value;
+	target->env_ipc_from = curenv->env_id;
+	if (ret)
+		target->env_ipc_perm = perm;
+	else
+		target->env_ipc_perm = 0;
+	target->env_status = ENV_RUNNABLE;
+
+	return ret;
 }
 
 // Block until a value is ready.  Record that you want to receive
@@ -376,7 +425,19 @@ static int
 sys_ipc_recv(void *dstva)
 {
 	// LAB 4: Your code here.
-	panic("sys_ipc_recv not implemented");
+	if ((unsigned int)dstva >= UTOP || dstva != ROUNDDOWN(dstva, PGSIZE))
+		return -E_INVAL;
+
+	curenv->env_ipc_dstva = dstva;
+	curenv->env_ipc_recving = 1;
+	curenv->env_status = ENV_NOT_RUNNABLE;
+	// set the return value to be zero,
+	// it is necessary, because the 'return' statement
+	// after 'sched_yield' will never be executed,
+	// actually it is skipped.
+	curenv->env_tf.tf_regs.reg_eax = 0;
+	// give up the CPU
+	sched_yield();
 	return 0;
 }
 
@@ -443,6 +504,13 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		break;
 	case SYS_phy_page:
 		ret = sys_phy_page((envid_t)a1, (void *)a2);
+		break;
+	case SYS_ipc_try_send:
+		ret = sys_ipc_try_send((envid_t)a1, (uint32_t)a2,
+							   (void *)a3, (int)a4);
+		break;
+	case SYS_ipc_recv:
+		ret = sys_ipc_recv((void *)a1);
 		break;
 	default:
 		// NSYSCALLS

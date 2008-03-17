@@ -84,6 +84,23 @@ idt_init(void)
 
 	extern void syscall_entry();
 
+	// hardware interrupts
+	extern void irq0_entry();
+	extern void irq1_entry();
+	extern void irq2_entry();
+	extern void irq3_entry();
+	extern void irq4_entry();
+	extern void irq5_entry();
+	extern void irq6_entry();
+	extern void irq7_entry();
+	extern void irq8_entry();
+	extern void irq9_entry();
+	extern void irq10_entry();
+	extern void irq11_entry();
+	extern void irq12_entry();
+	extern void irq13_entry();
+	extern void irq14_entry();
+
 	// LAB 3: Your code here.
 	SETGATE(idt[T_DIVIDE], 1, GD_KT, divzero_entry, 0);
 	SETGATE(idt[T_DEBUG], 1, GD_KT, debug_entry, 0);
@@ -105,6 +122,22 @@ idt_init(void)
 	SETGATE(idt[T_SIMDERR], 1, GD_KT, simderr_entry, 0);
 
 	SETGATE(idt[T_SYSCALL], 0, GD_KT, syscall_entry, 3);
+
+	SETGATE(idt[IRQ_OFFSET], 0, GD_KT, irq0_entry, 0);
+	SETGATE(idt[IRQ_OFFSET+1], 0, GD_KT, irq1_entry, 0);
+	SETGATE(idt[IRQ_OFFSET+2], 0, GD_KT, irq2_entry, 0);
+	SETGATE(idt[IRQ_OFFSET+3], 0, GD_KT, irq3_entry, 0);
+	SETGATE(idt[IRQ_OFFSET+4], 0, GD_KT, irq4_entry, 0);
+	SETGATE(idt[IRQ_OFFSET+5], 0, GD_KT, irq5_entry, 0);
+	SETGATE(idt[IRQ_OFFSET+6], 0, GD_KT, irq6_entry, 0);
+	SETGATE(idt[IRQ_OFFSET+7], 0, GD_KT, irq7_entry, 0);
+	SETGATE(idt[IRQ_OFFSET+8], 0, GD_KT, irq8_entry, 0);
+	SETGATE(idt[IRQ_OFFSET+9], 0, GD_KT, irq9_entry, 0);
+	SETGATE(idt[IRQ_OFFSET+10], 0, GD_KT, irq10_entry, 0);
+	SETGATE(idt[IRQ_OFFSET+11], 0, GD_KT, irq11_entry, 0);
+	SETGATE(idt[IRQ_OFFSET+12], 0, GD_KT, irq12_entry, 0);
+	SETGATE(idt[IRQ_OFFSET+13], 0, GD_KT, irq13_entry, 0);
+	SETGATE(idt[IRQ_OFFSET+14], 0, GD_KT, irq14_entry, 0);
 
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
@@ -157,6 +190,8 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+	// Handle clock and serial interrupts.
+	// LAB 4: Your code here.
 	int sys_ret;
 
 	switch (tf->tf_trapno) {
@@ -175,12 +210,13 @@ trap_dispatch(struct Trapframe *tf)
 						  tf->tf_regs.reg_esi);
 		tf->tf_regs.reg_eax = sys_ret;
 		return;
+	case IRQ_OFFSET:
+		// clock interrupt
+		sched_yield();
+		break;
 	default:
 		break;
 	}
-
-	// Handle clock and serial interrupts.
-	// LAB 4: Your code here.
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);

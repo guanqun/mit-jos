@@ -96,6 +96,8 @@ sys_exofork(void)
 
 	child->env_status = ENV_NOT_RUNNABLE;
 	child->env_tf = curenv->env_tf;
+	// install the pgfault upcall to the child
+	child->env_pgfault_upcall = curenv->env_pgfault_upcall;
 	// tweak the register eax of the child,
 	// thus, the child will look like the return value
 	// of the the system call is zero.

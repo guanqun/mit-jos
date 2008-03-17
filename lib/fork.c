@@ -7,8 +7,6 @@
 // It is one of the bits explicitly allocated to user processes (PTE_AVAIL).
 #define PTE_COW		0x800
 
-extern void _pgfault_upcall(void);
-
 //
 // Custom page fault handler - if faulting page is copy-on-write,
 // map in our own private writable copy.
@@ -128,7 +126,9 @@ fork(void)
 	// we are the parent
 	pn = UTOP / PGSIZE - 1;
 	while (--pn >= 0)
-		if ((vpd[pn >> 10] & PTE_P) && (vpt[pn] & PTE_P))
+		if (!(vpd[pn >> 10] & PTE_P))
+			pn = (pn >> 10) << 10;
+		else if (vpt[pn] & PTE_P)
 			duppage(envid, pn);
 
 	// allocate a new page for child - user exception stack
@@ -136,10 +136,6 @@ fork(void)
 							(void *)(UXSTACKTOP-PGSIZE),
 							PTE_W |PTE_U |PTE_P)) < 0)
 		panic("sys_page_alloc error: %e", r);
-
-	// setup the child's page fault entry point
-	if ((r = sys_env_set_pgfault_upcall(envid, _pgfault_upcall)) < 0)
-		panic("set_pgfault_handler: set pgfault upcall error: %e", r);
 
 	// fire the engine
 	if ((r = sys_env_set_status(envid, ENV_RUNNABLE)) < 0)

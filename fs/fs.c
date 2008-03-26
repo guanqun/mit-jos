@@ -75,7 +75,15 @@ read_block(uint32_t blockno, char **blk)
 		panic("reading free block %08x\n", blockno);
 
 	// LAB 5: Your code here.
-	panic("read_block not implemented");
+	if ((r = map_block(blockno)) < 0)
+		return r;
+
+	if ((r = ide_read(blockno * BLKSECTS, diskaddr(blockno), BLKSECTS)) < 0)
+		return r;
+
+	if (blk)
+		*blk = diskaddr(blockno);
+
 	return 0;
 }
 
@@ -87,13 +95,18 @@ void
 write_block(uint32_t blockno)
 {
 	char *addr;
+	int r;
 
 	if (!block_is_mapped(blockno))
 		panic("write unmapped block %08x", blockno);
 	
 	// Write the disk block and clear PTE_D.
 	// LAB 5: Your code here.
-	panic("write_block not implemented");
+	addr = diskaddr(blockno);
+	if ((r = ide_write(blockno * BLKSECTS, addr, BLKSECTS)) < 0)
+		panic("ide write error: %e", r);
+	if ((r = sys_page_map(0, addr, 0, addr, PTE_USER)) < 0)
+		panic("sys page map error: %e", r);
 }
 
 // Make sure this block is unmapped.
@@ -142,7 +155,15 @@ int
 alloc_block_num(void)
 {
 	// LAB 5: Your code here.
-	panic("alloc_block_num not implemented");
+	int i;
+
+	for (i = 0; i < super->s_nblocks; i++) {
+		if (block_is_free(i)) {
+			bitmap[i / 32] &= ~(1 << (i % 32));
+			write_block(i / BLKBITSIZE + 2);
+			return i;
+		}
+	}
 	return -E_NO_DISK;
 }
 
@@ -200,7 +221,7 @@ void
 read_bitmap(void)
 {
 	int r;
-	uint32_t i;
+	uint32_t i, n;
 	char *blk;
 
 	// Read the bitmap into memory.
@@ -211,7 +232,12 @@ read_bitmap(void)
 	// Hint: Use read_block.
 
 	// LAB 5: Your code here.
-	panic("read_bitmap not implemented");
+	n = super->s_nblocks / BLKBITSIZE;
+	cprintf("read the nblocks: %d.\n", n);
+	read_block(2, &blk);
+	bitmap = (uint32_t *)blk;
+	for (i = 1; i < n; i++)
+		read_block(i + 2, NULL);
 
 	// Make sure the reserved and root blocks are marked in-use.
 	assert(!block_is_free(0));
@@ -220,6 +246,8 @@ read_bitmap(void)
 
 	// Make sure that the bitmap blocks are marked in-use.
 	// LAB 5: Your code here.
+	for (i = 0; i < n; i++)
+		assert(!block_is_free(i + 2));
 
 	cprintf("read_bitmap is good\n");
 }
@@ -377,7 +405,10 @@ file_get_block(struct File *f, uint32_t filebno, char **blk)
 	// Read in the block, leaving the pointer in *blk.
 	// Hint: Use file_map_block and read_block.
 	// LAB 5: Your code here.
-	panic("file_get_block not implemented");
+	if ((r = file_map_block(f, filebno, &diskbno, 1)) < 0)
+		return r;
+	if ((r = read_block(diskbno, blk)) < 0)
+		return r;
 	return 0;
 }
 
@@ -546,7 +577,12 @@ file_open(const char *path, struct File **pf)
 {
 	// Hint: Use walk_path.
 	// LAB 5: Your code here.
-	panic("file_open not implemented");
+	struct File *dir, *f;
+	int r;
+
+	if ((r = walk_path(path, &dir, &f, 0)) < 0)
+		return r;
+	*pf = f;
 	return 0;
 }
 
@@ -566,8 +602,26 @@ file_truncate_blocks(struct File *f, off_t newsize)
 	uint32_t bno, old_nblocks, new_nblocks;
 
 	// Hint: Use file_clear_block and/or free_block.
-	// LAB 5: Your code here.
-	panic("file_truncate_blocks not implemented");
+	for (old_nblocks = 0; old_nblocks < f->f_size; old_nblocks += BLKSIZE)
+		;
+	old_nblocks /= BLKSIZE;
+	for (new_nblocks = 0; new_nblocks < newsize; new_nblocks += BLKSIZE)
+		;
+	new_nblocks /= BLKSIZE;
+	cprintf("truncate from %d[%d] -> %d[%d].\n", f->f_size, new_nblocks, f->f_size, old_nblocks);
+	for (bno = new_nblocks; bno <= old_nblocks; bno++)
+		if ((r = file_clear_block(f, bno)) < 0)
+			panic("file clear block error: %e\n", r);
+
+	// Yeah, we need to clear the extra block as well
+	if (new_nblocks < NDIRECT) {
+		if (f->f_indirect != 0) {
+			free_block(f->f_indirect);
+			f->f_indirect = 0;
+		}
+		while (new_nblocks < NDIRECT)
+			f->f_direct[new_nblocks++] = 0;
+	}
 }
 
 int
@@ -591,7 +645,17 @@ void
 file_flush(struct File *f)
 {
 	// LAB 5: Your code here.
-	panic("file_flush not implemented");
+	int i, n, r;
+	uint32_t diskbno;
+
+	for (i = 0; i < f->f_size; i += BLKSIZE) {
+		if ((r = file_map_block(f, i, &diskbno, 0)) < 0)
+			panic("file map block error: %e", r);
+		if (block_is_dirty(diskbno))
+			write_block(diskbno);
+		//if (f->f_indirect && block_is_dirty(f->f_indirect))
+			//write_block(f->f_indirect);
+	}
 }
 
 // Sync the entire file system.  A big hammer.

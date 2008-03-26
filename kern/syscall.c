@@ -387,8 +387,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		if ((perm & PTE_W) && !(*pte & PTE_W))
 			return -E_INVAL;
 
-		if (target->env_ipc_dstva == srcva &&
-			page_insert(target->env_pgdir, page, srcva, perm) < 0)
+		if (page_insert(target->env_pgdir, page, target->env_ipc_dstva, perm) < 0)
 			return -E_NO_MEM;
 
 		ret = 1;

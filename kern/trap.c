@@ -192,6 +192,8 @@ trap_dispatch(struct Trapframe *tf)
 	// LAB 3: Your code here.
 	// Handle clock and serial interrupts.
 	// LAB 4: Your code here.
+	// Handle keyboard interrupts.
+	// LAB 5: Your code here.
 	int sys_ret;
 
 	switch (tf->tf_trapno) {

@@ -237,7 +237,7 @@ serve_close(envid_t envid, struct Fsreq_close *rq)
 
 
 out:
-	ipc_send(envid, 0, 0, 0);
+	ipc_send(envid, r, 0, 0);
 }
 
 void

@@ -310,7 +310,7 @@ page_fault_handler(struct Trapframe *tf)
 	// Destroy the environment that caused the fault,
 	// if 'env_pgfault_upcall' is null
 	if (!curenv->env_pgfault_upcall) {
-		cprintf("not page fault handler installed.\n");
+		cprintf("no page fault handler installed.\n");
 		cprintf("[%08x] user fault va %08x ip %08x\n",
 				curenv->env_id, fault_va, tf->tf_eip);
 		print_trapframe(tf);

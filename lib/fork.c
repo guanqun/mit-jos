@@ -40,7 +40,7 @@ pgfault(struct UTrapframe *utf)
 	// copy the actual content
 	memmove((void *)PFTEMP, ROUNDDOWN(addr, PGSIZE), PGSIZE);
 	if ((r = sys_page_map(0, (void *)PFTEMP, 0, ROUNDDOWN(addr, PGSIZE),
-						  PTE_U | PTE_W | PTE_P)) < 0)
+			      PTE_U | PTE_W | PTE_P)) < 0)
 		panic("sys_page_map error: %e", r);
 
 	if ((r = sys_page_unmap(0, (void *)PFTEMP)) < 0)
@@ -68,18 +68,18 @@ duppage(envid_t envid, unsigned pn)
 	pte = vpt[pn];
 	if ((pte & PTE_W) || (pte & PTE_COW)) {
 		if ((r = sys_page_map(0, (void *)(pn*PGSIZE),
-							  envid, (void *)(pn*PGSIZE),
-							  PTE_U | PTE_P | PTE_COW)) < 0)
+				      envid, (void *)(pn*PGSIZE),
+				      PTE_U | PTE_P | PTE_COW)) < 0)
 			panic("sys_page_map error: %e", r);
 
 		if ((r = sys_page_map(envid, (void *)(pn*PGSIZE),
-							  0, (void *)(pn*PGSIZE),
-							  PTE_U | PTE_P | PTE_COW)) < 0)
+				      0, (void *)(pn*PGSIZE),
+				      PTE_U | PTE_P | PTE_COW)) < 0)
 			panic("sys_page_map error: %e", r);
 	} else {
 		if ((r = sys_page_map(0, (void *)(pn*PGSIZE),
-							  envid, (void *)(pn*PGSIZE),
-							  PTE_W | PTE_P | PTE_U)) < 0)
+				      envid, (void *)(pn*PGSIZE),
+				      PTE_W | PTE_P | PTE_U)) < 0)
 			panic("sys_page_map error: %e", r);
 	}
 
@@ -133,8 +133,8 @@ fork(void)
 
 	// allocate a new page for child - user exception stack
 	if ((r = sys_page_alloc(envid,
-							(void *)(UXSTACKTOP-PGSIZE),
-							PTE_W |PTE_U |PTE_P)) < 0)
+				(void *)(UXSTACKTOP-PGSIZE),
+				PTE_W |PTE_U |PTE_P)) < 0)
 		panic("sys_page_alloc error: %e", r);
 
 	// fire the engine

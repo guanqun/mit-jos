@@ -298,6 +298,10 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 	struct Proghdr *ph;
 	int r, ph_num;
 
+	// basic sanity check for elf image
+	if (((struct Elf *)binary)->e_magic != ELF_MAGIC)
+		panic("load_icode: not an elf image!\n");
+
 	ph = (struct Proghdr *)(binary + ((struct Elf *)binary)->e_phoff);
 	ph_num = ((struct Elf *)binary)->e_phnum;
 

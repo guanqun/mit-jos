@@ -66,7 +66,8 @@ duppage(envid_t envid, unsigned pn)
 	// LAB 4: Your code here.
 
 	pte = vpt[pn];
-	if ((pte & PTE_W) || (pte & PTE_COW)) {
+	if (!(pte & PTE_SHARE) &&
+	    ((pte & PTE_W) || (pte & PTE_COW))) {
 		if ((r = sys_page_map(0, (void *)(pn*PGSIZE),
 				      envid, (void *)(pn*PGSIZE),
 				      PTE_U | PTE_P | PTE_COW)) < 0)
@@ -77,9 +78,12 @@ duppage(envid_t envid, unsigned pn)
 				      PTE_U | PTE_P | PTE_COW)) < 0)
 			panic("sys_page_map error: %e", r);
 	} else {
+		// read-only page or share page
+		// if pte has bit PTE_SHARE set, the PTE should
+		// be copied directly from parent to child
 		if ((r = sys_page_map(0, (void *)(pn*PGSIZE),
 				      envid, (void *)(pn*PGSIZE),
-				      PTE_W | PTE_P | PTE_U)) < 0)
+				      pte & PTE_USER)) < 0)
 			panic("sys_page_map error: %e", r);
 	}
 

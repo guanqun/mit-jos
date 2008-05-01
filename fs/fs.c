@@ -53,7 +53,7 @@ map_block(uint32_t blockno)
 {
 	if (block_is_mapped(blockno))
 		return 0;
-	return sys_page_alloc(0, diskaddr(blockno), PTE_U|PTE_P|PTE_W);
+	return sys_page_alloc(0, diskaddr(blockno), PTE_U|PTE_P|PTE_W|PTE_SHARE);
 }
 
 // Make sure a particular disk block is loaded into memory.

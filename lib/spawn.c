@@ -22,7 +22,7 @@ spawn(const char *prog, const char **argv)
 	envid_t child;
 	struct Elf elf;
 	struct Proghdr ph;
-	int r, i;
+	int r, i, pn;
 	int fd;
 	uintptr_t esp;
 
@@ -116,6 +116,19 @@ spawn(const char *prog, const char **argv)
 		}
 	}
 	close(fd);
+	// loop through all the page table entries
+	pn = UTOP / PGSIZE - 1;
+	while (--pn >= 0)
+		if (!(vpd[pn >> 10] & PTE_P))
+			pn = (pn >> 10) << 10;
+		else if ((vpt[pn] & PTE_P) && (vpt[pn] & PTE_SHARE)) {
+			// propagate the PTE_SHARE pages
+			r = sys_page_map(0, (void *)(pn*PGSIZE),
+					 child, (void *)(pn*PGSIZE),
+					 vpt[pn] & PTE_USER);
+			if (r < 0)
+				return r;
+		}
 	//
 	//   - Call sys_env_set_trapframe(child, &child_tf) to set up the
 	//     correct initial eip and esp values in the child.
@@ -126,7 +139,6 @@ spawn(const char *prog, const char **argv)
 	if ((r = sys_env_set_status(child, ENV_RUNNABLE)) < 0)
 		return r;
 
-	// panic("spawn over...\n");
 	return child;
 }
 

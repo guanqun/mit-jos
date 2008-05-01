@@ -245,7 +245,7 @@ void
 serve_remove(envid_t envid, struct Fsreq_remove *rq)
 {
 	char path[MAXPATHLEN];
-	int r;
+	int r, len;
 
 	if (debug)
 		cprintf("serve_remove %08x %s\n", envid, rq->req_path);
@@ -255,7 +255,13 @@ serve_remove(envid_t envid, struct Fsreq_remove *rq)
 	// Hint: Make sure the path is null-terminated!
 
 	// LAB 5: Your code here.
-	panic("serve_remove not implemented");
+	len = strlen(rq->req_path);
+	memmove(path, rq->req_path, len);
+	path[len] = '\0';
+	if ((r = file_remove(path)) < 0)
+		ipc_send(envid, r, 0, 0);
+
+	ipc_send(envid, 0, 0, 0);
 }
 
 void
@@ -271,7 +277,12 @@ serve_dirty(envid_t envid, struct Fsreq_dirty *rq)
 	// Returns 0 on success, < 0 on error.
 	
 	// LAB 5: Your code here.
-	panic("serve_dirty not implemented");
+	if ((r = openfile_lookup(envid, rq->req_fileid, &o)) < 0)
+		ipc_send(envid, r, 0, 0);
+	if ((r = file_dirty(o->o_file, rq->req_offset)) < 0)
+		ipc_send(envid, r, 0, 0);
+
+	ipc_send(envid, 0, 0, 0);
 }
 
 void

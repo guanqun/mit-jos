@@ -233,7 +233,6 @@ init_stack(envid_t child, const char **argv, uintptr_t *init_esp)
 	if ((r = sys_page_unmap(0, UTEMP)) < 0)
 		return r;
 
-	cprintf("complete init_stack esp: %x.\n", argv_store);
 	return 0;
 }
 

@@ -7,6 +7,7 @@
 
 // Helper functions for spawn.
 static int init_stack(envid_t child, const char **argv, uintptr_t *init_esp);
+static int copy_shared_pages(envid_t child);
 static int load_elf_to_child(int fd, struct Proghdr *ph, envid_t child);
 
 // Spawn a child process from a program image loaded from the file system.

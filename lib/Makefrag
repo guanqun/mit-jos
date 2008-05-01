@@ -24,6 +24,11 @@ LIB_SRCFILES :=		$(LIB_SRCFILES) \
 			lib/pageref.c \
 			lib/spawn.c
 
+LIB_SRCFILES :=		$(LIB_SRCFILES) \
+			lib/malloc.c \
+			lib/pipe.c \
+			lib/wait.c
+
 LIB_OBJFILES := $(patsubst lib/%.c, $(OBJDIR)/lib/%.o, $(LIB_SRCFILES))
 LIB_OBJFILES := $(patsubst lib/%.S, $(OBJDIR)/lib/%.o, $(LIB_OBJFILES))
 

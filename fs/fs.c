@@ -649,7 +649,7 @@ file_flush(struct File *f)
 	uint32_t diskbno;
 
 	for (i = 0; i < f->f_size; i += BLKSIZE) {
-		if ((r = file_map_block(f, i, &diskbno, 0)) < 0)
+		if ((r = file_map_block(f, i/BLKSIZE, &diskbno, 0)) < 0)
 			panic("file map block error: %e", r);
 		if (block_is_dirty(diskbno))
 			write_block(diskbno);

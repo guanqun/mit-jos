@@ -233,8 +233,9 @@ serve_close(envid_t envid, struct Fsreq_close *rq)
 	file_close(o->o_file);
 	// make the fileid to the original
 	// so that stale fileid is not available
+	// notice that, when o_fileid is less than MAXOPEN,
+	// it means that it is a stale file id.
 	o->o_fileid = o->o_fileid % MAXOPEN;
-
 
 out:
 	ipc_send(envid, r, 0, 0);

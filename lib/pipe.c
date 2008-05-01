@@ -90,7 +90,8 @@ _pipeisclosed(struct Fd *fd, struct Pipe *p)
 	// everybody left is what fd is.  So the other end of
 	// the pipe is closed.
 
-	panic("_pipeisclosed not implemented");
+	if (pageref(fd) == pageref(p))
+		return 1;
 	return 0;
 }
 
@@ -120,8 +121,29 @@ piperead(struct Fd *fd, void *vbuf, size_t n, off_t offset)
 	// return 0.
 	// Use _pipeisclosed to check whether the pipe is closed.
 
-	panic("piperead not implemented");
-	return -E_INVAL;
+	struct Pipe *p;
+	uint8_t *buf;
+	int i;
+
+	USED(offset);
+
+	p = (struct Pipe *)fd2data(fd);
+	buf = vbuf;
+	for (i = 0; i < n; i++) {
+		while (p->p_rpos >= p->p_wpos) {
+			// copied some bytes, then just return
+			if (i > 0)
+				return i;
+			// i == 0
+			// i.e. have not yet copied any bytes
+			if (_pipeisclosed(fd, p))
+				return 0;
+			sys_yield();
+		}
+		buf[i] = p->p_buf[p->p_rpos % PIPEBUFSIZ];
+		p->p_rpos++;
+	}
+	return n;
 }
 
 static ssize_t
@@ -135,8 +157,24 @@ pipewrite(struct Fd *fd, const void *vbuf, size_t n, off_t offset)
 	// If the pipe is full and closed, return 0.
 	// Use _pipeisclosed to check whether the pipe is closed.
 
-	panic("pipewrite not implemented");
-	return -E_INVAL;
+	struct Pipe *p;
+	const uint8_t *buf;
+	int i;
+
+	USED(offset);
+
+	p = (struct Pipe *)fd2data(fd);
+	buf = vbuf;
+	for (i = 0; i < n; i++) {
+		while (p->p_wpos - p->p_rpos >= PIPEBUFSIZ) {
+			if (_pipeisclosed(fd, p))
+				return 0;
+			sys_yield();
+		}
+		p->p_buf[p->p_wpos % PIPEBUFSIZ] = buf[i];
+		p->p_wpos++;
+	}
+	return n;
 }
 
 static int

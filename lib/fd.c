@@ -50,9 +50,17 @@ fd2num(struct Fd *fd)
 int
 fd_alloc(struct Fd **fd_store)
 {
-	// LAB 5: Your code here.
+	struct Fd *fd;
+	int i;
 
-	panic("fd_alloc not implemented");
+	for (i = 0; i < MAXFD; i++) {
+		fd = INDEX2FD(i);
+		if (pageref(fd) == 0) {
+			*fd_store = fd;
+			return 0;
+		}
+	}
+	*fd_store = 0;
 	return -E_MAX_OPEN;
 }
 
@@ -65,9 +73,16 @@ fd_alloc(struct Fd **fd_store)
 int
 fd_lookup(int fdnum, struct Fd **fd_store)
 {
-	// LAB 5: Your code here.
+	struct Fd *fd;
 
-	panic("fd_lookup not implemented");
+	if (fdnum >= 0 && fdnum < MAXFD) {
+		fd = INDEX2FD(fdnum);
+		if (pageref(fd) > 0) {
+			*fd_store = fd;
+			return 0;
+		}
+	}
+	*fd_store = 0;
 	return -E_INVAL;
 }
 

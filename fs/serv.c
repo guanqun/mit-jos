@@ -220,17 +220,23 @@ void
 serve_close(envid_t envid, struct Fsreq_close *rq)
 {
 	struct OpenFile *o;
-	int r;
+	int r = 0;
 
 	if (debug)
 		cprintf("serve_close %08x %08x\n", envid, rq->req_fileid);
 
-	// Close the file.
-	// o->o_fd unmapped???
 	if ((r = openfile_lookup(envid, rq->req_fileid, &o)) < 0)
-		ipc_send(envid, r, 0, 0);
+		goto out;
+	// unmap o->o_fd
+	sys_page_unmap(0, o->o_fd);
+	// close the file.
 	file_close(o->o_file);
+	// make the fileid to the original
+	// so that stale fileid is not available
+	o->o_fileid = o->o_fileid % MAXOPEN;
 
+
+out:
 	ipc_send(envid, 0, 0, 0);
 }
 

@@ -54,8 +54,19 @@ again:
 			// If not, dup 'fd' onto file descriptor 0,
 			// then close the original 'fd'.
 			
-			// LAB 5: Your code here.
-			panic("< redirection not implemented");
+			if ((fd = open(t, O_RDONLY)) < 0) {
+				cprintf("file not found: %s\n", t);
+				exit();
+			}
+			if (fd == 0) {
+				cprintf("file descriptor is zero.\n");
+				exit();
+			}
+			if ((r = dup(fd, 0)) < 0) {
+				cprintf("dup error: %e\n", r);
+				exit();
+			}
+			close(fd);
 			break;
 			
 		case '>':	// Output redirection
@@ -72,8 +83,19 @@ again:
 			// If not, dup 'fd' onto file descriptor 1,
 			// then close the original 'fd'.
 			
-			// LAB 5: Your code here.
-			panic("> redirection not implemented");
+			if ((fd = open(t, O_WRONLY)) < 0) {
+				cprintf("file not found: %s\n", t);
+				exit();
+			}
+			if (fd == 1) {
+				cprintf("file descriptor is one.\n");
+				exit();
+			}
+			if ((r = dup(fd, 1)) < 0) {
+				cprintf("dup error: %e\n", r);
+				exit();
+			}
+			close(fd);
 			break;
 			
 		case '|':	// Pipe
@@ -100,8 +122,35 @@ again:
 			//	Then 'goto runit', to execute this piece of
 			//	the pipeline.
 
-			// LAB 5: Your code here.
-			panic("| not implemented");
+			if ((r = pipe(p)) < 0) {
+				cprintf("pipe creation error.\n");
+				exit();
+			}
+			if ((pipe_child = fork()) < 0) {
+				cprintf("fork error.\n");
+				exit();
+			}
+			if (pipe_child == 0) {
+				// child
+				if ((r = dup(p[0], 0)) < 0) {
+					cprintf("pipe child dup error.\n");
+					exit();
+				}
+				close(p[0]);
+				close(p[1]);
+
+				goto again;
+			} else {
+				// parent
+				if ((r = dup(p[1], 1)) < 0) {
+					cprintf("pipe parent dup error.\n");
+					exit();
+				}
+				close(p[0]);
+				close(p[1]);
+
+				goto runit;
+			}
 			break;
 
 		case 0:		// String is complete

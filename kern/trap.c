@@ -216,6 +216,10 @@ trap_dispatch(struct Trapframe *tf)
 		// clock interrupt
 		sched_yield();
 		break;
+	case IRQ_OFFSET + IRQ_KBD:
+		// keyboard interrupt
+		kbd_intr();
+		break;
 	default:
 		break;
 	}

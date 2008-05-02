@@ -122,7 +122,7 @@ env_setup_vm(struct Env *e)
 	e->env_cr3 = PADDR(e->env_pgdir);
 	memset(e->env_pgdir, 0, PDX(UTOP) * 4);
 	memmove(e->env_pgdir + PDX(UTOP), boot_pgdir + PDX(UTOP),
-		   PGSIZE - PDX(UTOP) * 4);
+		PGSIZE - PDX(UTOP) * 4);
 
 	// VPT and UVPT map the env's own page table, with
 	// different permissions.
@@ -159,7 +159,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	if (generation <= 0)	// Don't create a negative env_id.
 		generation = 1 << ENVGENSHIFT;
 	e->env_id = generation | (e - envs);
-	
+
 	// Set the basic status variables.
 	e->env_parent_id = parent_id;
 	e->env_status = ENV_RUNNABLE;
@@ -325,9 +325,9 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 	if ((r = page_alloc(&p)) < 0)
 		panic("load_icode: %e", r);
 	if ((r = page_insert(e->env_pgdir,
-						 p,
-						 (void *)(USTACKTOP - PGSIZE),
-						 PTE_W | PTE_U)) < 0)
+			     p,
+			     (void *)(USTACKTOP - PGSIZE),
+			     PTE_W | PTE_U)) < 0)
 		panic("load_icode: %e", r);
 }
 
@@ -363,7 +363,7 @@ env_free(struct Env *e)
 	pte_t *pt;
 	uint32_t pdeno, pteno;
 	physaddr_t pa;
-	
+
 	// If freeing the current environment, switch to boot_pgdir
 	// before freeing the page directory, just in case the page
 	// gets reused.
@@ -433,12 +433,12 @@ void
 env_pop_tf(struct Trapframe *tf)
 {
 	__asm __volatile("movl %0,%%esp\n"
-		"\tpopal\n"
-		"\tpopl %%es\n"
-		"\tpopl %%ds\n"
-		"\taddl $0x8,%%esp\n" /* skip tf_trapno and tf_errcode */
-		"\tiret"
-		: : "g" (tf) : "memory");
+			 "\tpopal\n"
+			 "\tpopl %%es\n"
+			 "\tpopl %%ds\n"
+			 "\taddl $0x8,%%esp\n" /* skip tf_trapno and tf_errcode */
+			 "\tiret"
+			 : : "g" (tf) : "memory");
 	panic("iret failed");  /* mostly to placate the compiler */
 }
 
@@ -462,7 +462,7 @@ env_run(struct Env *e)
 	//	e->env_tf.  Go back through the code you wrote above
 	//	and make sure you have set the relevant parts of
 	//	e->env_tf to sensible values.
-	
+
 	// LAB 3: Your code here.
 	curenv = e;
 	e->env_runs++;

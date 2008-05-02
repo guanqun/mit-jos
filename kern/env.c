@@ -223,19 +223,18 @@ segment_alloc(struct Env *e, void *va, size_t len)
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round len up.
 	struct Page *p;
+	void *va_end;
 	int r;
 
+	va_end = va + len;
 	va = ROUNDDOWN(va, PGSIZE);
-	len = ROUNDUP(len, PGSIZE);
-
-	while (len) {
+	while (va < va_end) {
 		if ((r = page_alloc(&p)) < 0)
 			panic("segment_alloc: %e", r);
 
 		if ((r = page_insert(e->env_pgdir, p, va, PTE_W |PTE_U)) < 0)
 			panic("segment_alloc: %e", r);
 
-		len -= PGSIZE;
 		va += PGSIZE;
 	}
 }

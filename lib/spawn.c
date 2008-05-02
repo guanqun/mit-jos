@@ -254,10 +254,6 @@ static int load_elf_to_child(int fd, struct Proghdr *ph, envid_t child)
 	int r, size;
 	void *blk;
 
-	// debug
-	cprintf("proghdr: flag: %d; offset: %x; va: %x; filesz: %x; memsz: %x.\n",
-		ph->p_flags & ELF_PROG_FLAG_WRITE, ph->p_offset,
-		ph->p_va, ph->p_filesz, ph->p_memsz);
 	if (ph->p_flags & ELF_PROG_FLAG_WRITE) {
 		// read/write data here
 		offset = ph->p_offset;

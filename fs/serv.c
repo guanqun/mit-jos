@@ -210,7 +210,8 @@ serve_map(envid_t envid, struct Fsreq_map *rq)
 		ipc_send(envid, r, 0, 0);
 
 	perm = PTE_P |PTE_U |PTE_SHARE;
-	if (o->o_mode & O_WRONLY)
+	if ((o->o_mode & O_WRONLY) ||
+	    (o->o_mode & O_RDWR))
 		perm |= PTE_W;
 
 	ipc_send(envid, 0, blk, perm);

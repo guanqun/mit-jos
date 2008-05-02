@@ -191,6 +191,12 @@ pipestat(struct Fd *fd, struct Stat *stat)
 static int
 pipeclose(struct Fd *fd)
 {
-	return sys_page_unmap(0, fd2data(fd));
+	void *p;
+	int r;
+
+	p = fd2data(fd);
+	if ((r = sys_page_unmap(0, fd)) < 0)
+		return r;
+	return sys_page_unmap(0, p);
 }
 

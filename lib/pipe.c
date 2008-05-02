@@ -90,9 +90,15 @@ _pipeisclosed(struct Fd *fd, struct Pipe *p)
 	// everybody left is what fd is.  So the other end of
 	// the pipe is closed.
 
-	if (pageref(fd) == pageref(p))
-		return 1;
-	return 0;
+	int runs, r;
+	do {
+		runs = env->env_runs;
+		r = 0;
+		if (pageref(fd) == pageref(p))
+			r = 1;
+	} while (runs != env->env_runs);
+
+	return r;
 }
 
 int

@@ -228,15 +228,22 @@ serve_close(envid_t envid, struct Fsreq_close *rq)
 
 	if ((r = openfile_lookup(envid, rq->req_fileid, &o)) < 0)
 		goto out;
-	// unmap o->o_fd
-	sys_page_unmap(0, o->o_fd);
-	// close the file.
+
+	// unmap o->o_fd only when the client side
+	// has already unmapped the 'fd' page.
+	// the logic below is that the server side
+	// unmap the o_fd page only when it is
+	// the last reference.
+	if (pageref(o->o_fd) == 1) {
+		sys_page_unmap(0, o->o_fd);
+		// make the fileid to the original
+		// so that stale fileid is not available
+		// notice that, when o_fileid is less than MAXOPEN,
+		// it means that it is a stale file id.
+		o->o_fileid = o->o_fileid % MAXOPEN;
+	}
+	// close the file (fs/fs.c)
 	file_close(o->o_file);
-	// make the fileid to the original
-	// so that stale fileid is not available
-	// notice that, when o_fileid is less than MAXOPEN,
-	// it means that it is a stale file id.
-	o->o_fileid = o->o_fileid % MAXOPEN;
 
 out:
 	ipc_send(envid, r, 0, 0);

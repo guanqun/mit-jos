@@ -74,15 +74,27 @@ read_block(uint32_t blockno, char **blk)
 	if (bitmap && block_is_free(blockno))
 		panic("reading free block %08x\n", blockno);
 
-	// LAB 5: Your code here.
-	if ((r = map_block(blockno)) < 0)
+	addr = diskaddr(blockno);
+
+	// the block has already been read
+	if (block_is_mapped(blockno)) {
+		if (blk)
+			*blk = addr;
+		return 0;
+	}
+
+	// otherwise, allocate a new page,
+	// and read it into memory
+	r = sys_page_alloc(0, addr, PTE_U| PTE_P| PTE_W |PTE_SHARE);
+	if (r < 0)
 		return r;
 
-	if ((r = ide_read(blockno * BLKSECTS, diskaddr(blockno), BLKSECTS)) < 0)
+	r = ide_read(blockno * BLKSECTS, addr, BLKSECTS);
+	if (r < 0)
 		return r;
 
 	if (blk)
-		*blk = diskaddr(blockno);
+		*blk = addr;
 
 	return 0;
 }

@@ -69,7 +69,7 @@ file_close(struct Fd *fd)
 	size = fd->fd_file.file.f_size;
 	id = fd->fd_file.id;
 
-	if ((r = funmap(fd, size, size, 1)) < 0)
+	if ((r = funmap(fd, size, 0, 1)) < 0)
 		return r;
 	fsipc_close(id);
 

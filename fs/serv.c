@@ -233,8 +233,15 @@ serve_close(envid_t envid, struct Fsreq_close *rq)
 	// has already unmapped the 'fd' page.
 	// the logic below is that the server side
 	// unmap the o_fd page only when it is
-	// the last reference.
-	if (pageref(o->o_fd) == 1) {
+	// the last second reference.
+	if (pageref(o->o_fd) == 2) {
+		// the below statement can be commented out also
+		// because if this statement is commented, then
+		// finally the pageref is zero, and this physical
+		// page will be released. Otherwise this page will
+		// never be released, but fortunately, as we can
+		// see from 'openfile_alloc', pageref == 0 or == 1
+		// is both OK. But i like it to be clean...
 		sys_page_unmap(0, o->o_fd);
 		// make the fileid to the original
 		// so that stale fileid is not available
